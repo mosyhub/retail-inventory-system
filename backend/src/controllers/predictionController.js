@@ -56,6 +56,12 @@ export const generatePredictions = asyncHandler(async (req, res) => {
 
     const sales = salesSnap.docs.map((doc) => doc.data());
 
+    // Configurable thresholds (can be set via environment variables):
+    // - RESTOCK_SOON_DAYS: number of days to consider a product "Restock Soon" (default: 10)
+    // - RESTOCK_NOW_PRECEDENCE: set to 'false' to let "Restock Soon" be evaluated before "Restock Now" (default: true)
+    const RESTOCK_SOON_DAYS = parseInt(process.env.RESTOCK_SOON_DAYS, 10) || 10;
+    const RESTOCK_NOW_PRECEDENCE = process.env.RESTOCK_NOW_PRECEDENCE !== "false";
+
     // 3. Aggregate total units sold per product
     const productSalesMap = {};
     sales.forEach((sale) => {
@@ -106,16 +112,28 @@ export const generatePredictions = asyncHandler(async (req, res) => {
       const recommendedQuantity = Math.ceil(averageDailySales * 14);
 
       // --- Status Rules ---
-      // IF currentStock <= reorderPoint  →  "Restock Now"
-      // IF daysRemaining < 7             →  "Restock Soon"
-      // ELSE                             →  "Sufficient"
+      // The rules are configurable via environment variables above.
+      // Default behavior: check "Restock Now" (ROP) first, then "Restock Soon" (days remaining).
+      // If RESTOCK_NOW_PRECEDENCE is set to 'false', the controller will evaluate
+      // "Restock Soon" before "Restock Now" which may surface "Restock Soon"
+      // for items that are close to running out even if they're near the ROP.
       let status;
-      if (product.stock <= reorderPoint && averageDailySales > 0) {
-        status = "Restock Now";
-      } else if (daysRemaining < 7 && daysRemaining !== 999) {
-        status = "Restock Soon";
+      if (!RESTOCK_NOW_PRECEDENCE) {
+        if (daysRemaining < RESTOCK_SOON_DAYS && daysRemaining !== 999 && averageDailySales > 0) {
+          status = "Restock Soon";
+        } else if (product.stock <= reorderPoint && averageDailySales > 0) {
+          status = "Restock Now";
+        } else {
+          status = "Sufficient";
+        }
       } else {
-        status = "Sufficient";
+        if (product.stock <= reorderPoint && averageDailySales > 0) {
+          status = "Restock Now";
+        } else if (daysRemaining < RESTOCK_SOON_DAYS && daysRemaining !== 999) {
+          status = "Restock Soon";
+        } else {
+          status = "Sufficient";
+        }
       }
 
       // --- Estimated Reorder Date ---

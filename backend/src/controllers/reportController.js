@@ -224,9 +224,21 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
     const allProducts = productsSnapshot.docs.map((doc) => doc.data());
 
     const totalProducts = allProducts.length;
-    const lowStockProducts = allProducts.filter(
-      (p) => p.stock <= p.reorderLevel && p.reorderLevel > 0
-    ).length;
+
+    // Also consider predictions (Restock Now / Restock Soon) when computing low stock
+    const predsSnap = await db.collection("predictions").get();
+    const predMap = {};
+    predsSnap.docs.forEach((d) => {
+      predMap[d.id] = d.data();
+    });
+
+    const lowStockProducts = allProducts.filter((p) => {
+      const byReorderLevel = p.reorderLevel > 0 && p.stock <= p.reorderLevel;
+      const prediction = predMap[p.id];
+      const byPrediction = prediction && (prediction.status === "Restock Now" || prediction.status === "Restock Soon");
+      return byReorderLevel || byPrediction;
+    }).length;
+
     const outOfStockProducts = allProducts.filter((p) => p.stock === 0).length;
 
     // Inventory value

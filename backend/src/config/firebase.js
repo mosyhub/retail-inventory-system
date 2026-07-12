@@ -15,19 +15,6 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = path.join(__dirname, "../..");
 
-/**
- * We support two ways of supplying credentials, because local development
- * and cloud deployment (Render, Railway, etc.) handle files differently:
- *
- *   1. FIREBASE_SERVICE_ACCOUNT_PATH -> path to the downloaded JSON file (local dev)
- *   2. FIREBASE_SERVICE_ACCOUNT_JSON -> the JSON contents as a single env var string (deployment)
- *
- * If NEITHER is configured (e.g. you skipped Firebase setup for now while
- * building other modules), we fall back to a "dummy" initialization so the
- * server can still boot and routes can still be wired up — but any actual
- * Firestore/Auth call will fail until real credentials are added.
- */
-
 let serviceAccount = null;
 
 if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {

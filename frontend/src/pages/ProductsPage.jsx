@@ -1,7 +1,3 @@
-// src/pages/ProductsPage.jsx
-//
-// Module 3: Product Management
-// Display products table, search, filter by category, create/edit/delete products.
 
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext.jsx";

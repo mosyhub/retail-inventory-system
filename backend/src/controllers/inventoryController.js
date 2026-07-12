@@ -323,24 +323,42 @@ export const getTransactions = asyncHandler(async (req, res) => {
  */
 export const getLowStockProducts = asyncHandler(async (req, res) => {
   try {
-    const snapshot = await db
-      .collection("products")
-      .where("isActive", "==", true)
-      .get();
+    // Fetch all active products
+    const snapshot = await db.collection("products").where("isActive", "==", true).get();
+    const products = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-    const lowStockProducts = snapshot.docs
-      .map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }))
-      .filter((p) => p.stock <= p.reorderLevel && p.reorderLevel > 0)
+    // Fetch latest predictions (if any) to consider reorderPoint/status
+    const predsSnap = await db.collection("predictions").get();
+    const predMap = {};
+    predsSnap.docs.forEach((d) => {
+      predMap[d.id] = d.data();
+    });
+
+    // Determine low-stock either by product.reorderLevel OR by prediction status
+    const lowStockProducts = products
+      .map((p) => {
+        const prediction = predMap[p.id];
+        return {
+          id: p.id,
+          name: p.name,
+          sku: p.sku || "",
+          category: p.category || "",
+          stock: p.stock,
+          reorderLevel: p.reorderLevel || 0,
+          // include prediction fields if available
+          predictedStatus: prediction?.status || null,
+          predictedReorderPoint: prediction?.reorderPoint || null,
+          predictedDaysRemaining: prediction?.daysRemaining ?? null,
+        };
+      })
+      .filter((p) => {
+        const byReorderLevel = p.reorderLevel > 0 && p.stock <= p.reorderLevel;
+        const byPrediction = p.predictedStatus === "Restock Now" || p.predictedStatus === "Restock Soon";
+        return byReorderLevel || byPrediction;
+      })
       .sort((a, b) => a.stock - b.stock);
 
-    res.status(200).json({
-      success: true,
-      products: lowStockProducts,
-      total: lowStockProducts.length,
-    });
+    res.status(200).json({ success: true, products: lowStockProducts, total: lowStockProducts.length });
   } catch (err) {
     throw err;
   }

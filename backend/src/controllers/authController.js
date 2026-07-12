@@ -9,23 +9,6 @@ import ApiError from "../utils/ApiError.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { logAction } from "../utils/auditService.js";
 
-/**
- * POST /api/auth/signup
- *
- * Creates a user profile in Firestore after Firebase Authentication signup (done on frontend).
- * Frontend creates the Firebase user first, then sends this request to store additional metadata.
- *
- * Request body:
- *   - idToken: string (ID token from Firebase Client SDK)
- *   - email: string (unique, must be valid email)
- *   - firstName: string
- *   - lastName: string
- *   - role: string (one of: "admin", "manager", "cashier", "inventory_staff")
- *
- * Response:
- *   - user: { uid, email, firstName, lastName, role, createdAt }
- *   - idToken: JWT token for authenticated requests
- */
 export const signup = asyncHandler(async (req, res) => {
   // Validate input
   await body("email").isEmail().trim().toLowerCase().run(req);
@@ -102,20 +85,6 @@ export const signup = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/login
- *
- * Verifies credentials via Firebase and returns user data + ID token.
- * (The actual credential verification happens on the frontend via Firebase Client SDK,
- *  and the frontend sends the ID token here for backend verification and session setup.)
- *
- * Request body:
- *   - idToken: string (JWT from Firebase Client SDK)
- *
- * Response:
- *   - user: { uid, email, firstName, lastName, role, createdAt }
- *   - idToken: The token (echoed back for frontend convenience, though frontend already has it)
- */
 export const login = asyncHandler(async (req, res) => {
   const { idToken } = req.body;
 
@@ -177,22 +146,8 @@ export const login = asyncHandler(async (req, res) => {
   }
 });
 
-/**
- * POST /api/auth/logout
- *
- * In a stateless JWT system, logout is typically a frontend operation
- * (delete stored token). However, for audit logging and potential future
- * features (e.g. invalidating tokens server-side), we provide this endpoint.
- *
- * Protected route — requires valid ID token.
- * Request: Authorization header with Bearer token
- * Response: Success message
- */
 export const logout = asyncHandler(async (req, res) => {
-  // In a stateless JWT system, logout is primarily client-side:
-  // the frontend deletes the stored token and clears auth context.
-  // The backend here just acknowledges the request for audit logging purposes.
-
+ 
   const uid = req.user.uid;
 
   // Audit log (fire-and-forget)

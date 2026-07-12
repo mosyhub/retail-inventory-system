@@ -247,7 +247,7 @@ export default function POSPage() {
                 >
                   <option value="cash">Cash</option>
                   <option value="card">Card</option>
-                  <option value="check">Check</option>
+                  
                 </select>
               </div>
 
